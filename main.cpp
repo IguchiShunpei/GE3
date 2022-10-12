@@ -1284,6 +1284,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		//DirectX毎フレーム処理 ここまで
 	}
 
+	//解放
+	delete input;
+
 	//ウィンドウクラスを登録解除
 	UnregisterClass(w.lpszClassName, w.hInstance);
 
