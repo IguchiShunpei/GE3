@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="シェーダーファイル">
+      <UniqueIdentifier>{0ec641aa-dd1b-4500-8535-382c3827c462}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -20,10 +23,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="BasicVS.hlsl" />
-    <FxCompile Include="BasicPS.hlsl" />
+    <None Include="Resources\shaders\Basic.hlsli">
+      <Filter>シェーダーファイル</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Basic.hlsli" />
+    <FxCompile Include="Resources\shaders\BasicPS.hlsl">
+      <Filter>シェーダーファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="Resources\shaders\BasicVS.hlsl">
+      <Filter>シェーダーファイル</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
