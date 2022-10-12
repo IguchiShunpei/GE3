@@ -9,12 +9,11 @@
 #include<DirectXMath.h>
 #include<dinput.h>
 #include<DirectXTex.h>
-#include<wrl.h>
+#include"Input.h"
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"d3dcompiler.lib")
-#pragma comment(lib,"dinput8.lib")
 #pragma comment(lib,"dxguid.lib")
 
 using namespace DirectX;
@@ -336,27 +335,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	result = device->CreateFence(fenceVal, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 
-	//DirectInputの初期化
-	IDirectInput8* directInput = nullptr;
-	result = DirectInput8Create(
-		w.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8,
-		(void**)&directInput, nullptr);
-	assert(SUCCEEDED(result));
+	//入力の生成
+	Input* input = nullptr;
 
-	//キーボードデバイスの生成
-	IDirectInputDevice8* keyboard = nullptr;
-	result = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
-	assert(SUCCEEDED(result));
-
-	//入力データ形式のセット
-	result = keyboard->SetDataFormat(&c_dfDIKeyboard);  //標準形式
-	assert(SUCCEEDED(result));
-
-	//排他制御レベルのセット
-	result = keyboard->SetCooperativeLevel(
-		hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
-	assert(SUCCEEDED(result));
-
+	//入力の初期化
+	input = new Input();
+	input->Initialize(w.hInstance, hwnd);
 
 	//DirectX 初期化処理　ここまで
 
@@ -959,7 +943,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//	std::copy_n((char*)errorBlob->GetBufferPointer(),
 	//		errorBlob->GetBufferPointer(),
 	//		error.begin());
-	//	error += "\n";
+	//	error += "\n";0000000
 	//	//エラー内容を出力ウィンドウに表示
 	//	OutputDebugStringA(error.c_str());
 	//	assert(0);
@@ -1129,15 +1113,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 		//DirectX毎フレーム処理　ここから
 
-		//キーボード情報の取得開始
-		keyboard->Acquire();
-
-		//全キーの入力状態を取得する
-		BYTE key[256] = {};
-		keyboard->GetDeviceState(sizeof(key), key);
+		//入力の更新
+		input->Update();
 
 		//数字の0キーが押されていたら
-		if (key[DIK_0])
+		if (input->TriggerKey(DIK_0))
 		{
 			OutputDebugStringA("Hit 0\n"); //出力ウィンドウの「Hit 0」と表示
 		}
@@ -1177,10 +1157,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 		//ビュー行列の計算
 		//カメラアングル変更
-		if (key[DIK_D] || key[DIK_A])
+		if (input->PushKey(DIK_D) || input->PushKey(DIK_A))
 		{
-			if (key[DIK_D]) { angle += XMConvertToRadians(1.0f); }
-			else if (key[DIK_A]) { angle -= XMConvertToRadians(1.0f); }
+			if (input->PushKey(DIK_D)) { angle += XMConvertToRadians(1.0f); }
+			else if (input->PushKey(DIK_A)) { angle -= XMConvertToRadians(1.0f); }
 
 			//angleラジアンだけY軸周りに回転。半径は-100
 			eye.x = -100 * sinf(angle);
@@ -1192,12 +1172,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 				XMLoadFloat3(&up));		//カメラから見た上はどういう向きか
 		}
 
-		if (key[DIK_UP] || key[DIK_DOWN] || key[DIK_RIGHT] || key[DIK_LEFT])
+		if (input->PushKey(DIK_UP) || input->PushKey
+			(DIK_DOWN) || input->PushKey(DIK_RIGHT) || input->PushKey(DIK_LEFT))
 		{
-			if (key[DIK_UP]) { object3ds[0].position.y += 1.0f; }
-			else if (key[DIK_DOWN]) { object3ds[0].position.y -= 1.0f; }
-			if (key[DIK_RIGHT]) { object3ds[0].position.x += 1.0f; }
-			else if (key[DIK_LEFT]) { object3ds[0].position.x -= 1.0f; }
+			if (input->PushKey(DIK_UP)) { object3ds[0].position.y += 1.0f; }
+			else if (input->PushKey(DIK_DOWN)) { object3ds[0].position.y -= 1.0f; }
+			if (input->PushKey(DIK_RIGHT)) { object3ds[0].position.x += 1.0f; }
+			else if (input->PushKey(DIK_LEFT)) { object3ds[0].position.x -= 1.0f; }
 		}
 
 		for (size_t i = 0; i < _countof(object3ds); i++)
@@ -1252,7 +1233,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 		//SRVヒープの先頭にあるSRVをルートパラメータの1番に設定
 
-		if (key[DIK_SPACE])
+		if (input->PushKey(DIK_SPACE))
 		{
 			srvGpuHandle.ptr += incrementSize;
 		}
