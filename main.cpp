@@ -10,6 +10,7 @@
 #include<dinput.h>
 #include<DirectXTex.h>
 #include"Input.h"
+#include"WinApp.h"
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
@@ -146,42 +147,13 @@ void DrawObject3d(Object3d* object, ID3D12GraphicsCommandList* commandList, D3D1
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
 	OutputDebugStringA("Hello,DirectX!!\n");
-	//ウィンドウサイズ
-	const int window_width = 1280; //横
-	const int window_height = 720; //縦
 
-	//ウィンドウクラスの設定
-	WNDCLASSEX w{};
-	w.cbSize = sizeof(WNDCLASSEX);
-	w.lpfnWndProc = (WNDPROC)WindowProc;     //ウィンドウプロシージャを設定
-	w.lpszClassName = L"DirectXGame";		 //ウィンドウクラス名
-	w.hInstance = GetModuleHandle(nullptr);	 //ウィンドウハンドル
-	w.hCursor = LoadCursor(NULL, IDC_ARROW); //カーソル指定
+	//ポインタ
+	WinApp* winApp = nullptr;
 
-	//ウィンドウクラスをOSに登録する
-	RegisterClassEx(&w);
-	//ウィンドウサイズ{ X座標 Y座標 横幅 立幅 }
-	RECT wrc = { 0,0,window_width,window_height };
-	//自動でサイズを補正する
-	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
-
-	//ウィンドウオブジェクトの生成
-	HWND hwnd = CreateWindow(w.lpszClassName,//クラス名)
-		L"DirectXGame",         //タイトルバーの表示
-		WS_OVERLAPPEDWINDOW,    //標準的なウィンドウスタイル
-		CW_USEDEFAULT,          //表示X座標(OSに任せる)
-		CW_USEDEFAULT,          //表示Y座標(OSに任せる)
-		wrc.right - wrc.left,   //ウィンドウ横幅
-		wrc.bottom - wrc.top,   //ウィンドウ立幅
-		nullptr,				//親ウィンドウハンドル
-		nullptr,				//メニューハンドル
-		w.hInstance,			//呼び出しアプリケーションハンドル
-		nullptr);				//オプション
-
-	//ウィンドウを表示状態にする
-	ShowWindow(hwnd, SW_SHOW);
-
-	MSG msg{}; //メッセージ	
+	//WindowsAPIの初期化
+	winApp = new WinApp();
+	winApp->Initialize();
 
 	//DirectX 初期化処理　ここから
 
@@ -293,7 +265,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	//スワップチェーンの生成
 	result = dxgiFactory->CreateSwapChainForHwnd(
-		commandQueue.Get(), hwnd, &swapChainDesc, nullptr, nullptr,
+		commandQueue.Get(), winApp->GetHwnd(), &swapChainDesc, nullptr, nullptr,
 		&swapChain1);
 	assert(SUCCEEDED(result));
 
@@ -340,7 +312,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	//入力の初期化
 	input = new Input();
-	input->Initialize(w.hInstance, hwnd);
+	input->Initialize(winApp);
 
 	//DirectX 初期化処理　ここまで
 
@@ -612,7 +584,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//透視投影行列の計算	
 	XMMATRIX matProjection = XMMatrixPerspectiveFovLH(
 		XMConvertToRadians(45.0f),//上下画角45度
-		(float)window_width / window_height,//アスペクト比
+		(float)WinApp::window_width / WinApp::window_height,//アスペクト比
 		0.1f, 1000.0f//前端、奥端
 	);
 
@@ -880,8 +852,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//リソース設定
 	D3D12_RESOURCE_DESC depthResourceDesc{};
 	depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	depthResourceDesc.Width = window_width;//レンダーターゲットに合わせる
-	depthResourceDesc.Height = window_height;//レンダーターゲットに合わせる
+	depthResourceDesc.Width = WinApp::window_width;//レンダーターゲットに合わせる
+	depthResourceDesc.Height = WinApp::window_height;//レンダーターゲットに合わせる
 	depthResourceDesc.DepthOrArraySize = 1;
 	depthResourceDesc.Format = DXGI_FORMAT_D32_FLOAT;//深度値フォーマット
 	depthResourceDesc.SampleDesc.Count = 1;
@@ -896,7 +868,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	depthClearValue.Format = DXGI_FORMAT_D32_FLOAT;//深度値フォーマット
 
 	//深度バッファの生成
-	ComPtr<ID3D12Resource>depthBuff;
+	ComPtr<ID3D12Resource> depthBuff;
 	result = device->CreateCommittedResource(
 		&depthHeapProp,
 		D3D12_HEAP_FLAG_NONE,
@@ -1098,16 +1070,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		//ゲームループ
 	while (true)
 	{
-		//メッセージがある？
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		//Windowsのメッセージ処理
+		if (winApp->ProcessMessage())
 		{
-			TranslateMessage(&msg);  //キー入力メッセージの処理
-			DispatchMessage(&msg);   //プロシージャにメッセージを送る
-		}
-
-		//×ボタンで終了メッセージが来たらゲームループを抜ける
-		if (msg.message == WM_QUIT)
-		{
+			//ゲームループを抜ける
 			break;
 		}
 
@@ -1173,7 +1139,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		}
 
 		if (input->PushKey(DIK_UP) || input->PushKey
-			(DIK_DOWN) || input->PushKey(DIK_RIGHT) || input->PushKey(DIK_LEFT))
+		(DIK_DOWN) || input->PushKey(DIK_RIGHT) || input->PushKey(DIK_LEFT))
 		{
 			if (input->PushKey(DIK_UP)) { object3ds[0].position.y += 1.0f; }
 			else if (input->PushKey(DIK_DOWN)) { object3ds[0].position.y -= 1.0f; }
@@ -1192,8 +1158,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 		//ビューポート設定コマンド
 		D3D12_VIEWPORT viewport{};
-		viewport.Width = window_width;
-		viewport.Height = window_height;
+		viewport.Width = WinApp::window_width;
+		viewport.Height = WinApp::window_height;
 		viewport.TopLeftX = 0;
 		viewport.TopLeftY = 0;
 		viewport.MinDepth = 0.0f;
@@ -1204,9 +1170,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		//シザー矩形
 		D3D12_RECT scissorRect{};
 		scissorRect.left = 0;
-		scissorRect.right = window_width;
+		scissorRect.right = WinApp::window_width;
 		scissorRect.top = 0;
-		scissorRect.bottom = window_height;
+		scissorRect.bottom = WinApp::window_height;
 		//シザー矩形設定コマンドを、コマンドリストに積む
 		commandList->RSSetScissorRects(1, &scissorRect);
 
@@ -1287,8 +1253,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//解放
 	delete input;
 
-	//ウィンドウクラスを登録解除
-	UnregisterClass(w.lpszClassName, w.hInstance);
+	//WindowsAPIの終了処理
+	winApp->Finalize();
+
+	delete winApp;
+	winApp = nullptr;
 
 	return 0;
 }
